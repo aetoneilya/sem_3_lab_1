@@ -36,9 +36,28 @@ class DiffieHellman
 {
 private:
     int closeKey, openKey;
-    int g, p;
-    int mod;
+    int g = 7;
+    int p = 919;
+    int modCompare(int num, int pow, int mod);
+    int resKey;
 
 public:
+    void setgp(int g, int p);
+    void setCloseKey();
+    void setOpenKey();
+    int getOpenKey();
+    void setResKey(int friendOpenKey);
+    int getResKey();
+};
+
+class AlGamal
+{
+private:
+    int closeKey, openKey;
+    int k, key, r, e, keyEnd;
+
+public:
+    void setgp();
+    void setCloseKey();
     void setOpenKey();
 };

@@ -29,7 +29,6 @@ std::istream &operator>>(std::istream &is, commands &command)
     return is;
 }
 
-
 void Interface::run()
 {
     while (true)
@@ -48,6 +47,7 @@ void Interface::doCommand(commands cmd)
     case commands::DFHLM:
         /* code */
         std::cout << "Diffie-Hellman" << std::endl;
+        CryptoAlgTest().diffieHellmanTest();
         break;
     case commands::ALGML:
         std::cout << "Al-Gamal" << std::endl;
@@ -68,4 +68,69 @@ void Interface::doCommand(commands cmd)
     }
 }
 
+int CryptoAlgTest::diffieHellmanTest() {
+    DiffieHellman Alice, Bob;
 
+    std::cout << "Enter close key for Alice" << std::endl;
+    Alice.setCloseKey();
+    Alice.setOpenKey();
+
+    std::cout << "Enter close key for Bob" << std::endl;
+    Bob.setCloseKey();
+    Bob.setOpenKey();
+
+    Alice.setResKey(Bob.getOpenKey());
+    Bob.setResKey(Alice.getOpenKey());
+
+    if (Alice.getResKey() == Bob.getResKey()) {
+        std::cout << "Diffie-Hellman success." << std::endl 
+        << "Your secret key is " << Alice.getResKey()
+        << std::endl;
+    }
+}
+
+void DiffieHellman::setCloseKey()
+{
+    int xA;
+    std::cin >> xA;
+    while (xA <= 2 || xA > p - 1)
+    {
+        std::cout << "ERROR: secret code must be greater than 2 but smaller than " 
+        << p - 1 << std::endl << "Please, enter it again: ";
+        std:: cin >> xA;
+    }
+}
+
+void DiffieHellman::setOpenKey()
+{
+    openKey = modCompare(g, closeKey, p);
+}
+
+int DiffieHellman::getOpenKey()
+{
+    return openKey;
+}
+
+void DiffieHellman::setResKey(int friendOpenKey)
+{
+    resKey = modCompare(friendOpenKey, closeKey, p);
+}
+
+int DiffieHellman::getResKey()
+{
+    return resKey;
+}
+
+int DiffieHellman::modCompare(int num, int pow, int mod)
+{
+    pow = pow % (mod - 1); //теоремка ферма
+    num %= mod;
+
+    int result = 1;
+    for (int i = 1; i <= pow; i++)
+    {
+        result *= num;
+        result %= mod;
+    }
+    return result;
+}
