@@ -12,16 +12,14 @@ std::istream &operator>>(std::istream &is, commands &command)
         command = commands::SHMR;
     else if (input == "ELGML")
         command = commands::ELGML;
+    else if (input == "SHA256")
+        command = commands::SHA256;
     else if (input == "ENCODE")
         command = commands::ENCODE;
     else if (input == "DECODE")
         command = commands::DECODE;
-    else if (input == "FROM_FILE")
-        command = commands::FROM_FILE;
     else if (input == "EXIT")
         command = commands::EXIT;
-    else if (input == "HELP")
-        command = commands::HELP;
     else if (input == "CLEAR")
         command = commands::CLEAR;
     else
@@ -60,12 +58,22 @@ void Interface::doCommand(commands cmd)
         std::cout << "Shamir" << std::endl;
         CryptoAlgTest().SHMRTest();
         break;
+    case commands::SHA256:
+        sha256();
+        break;
     case commands::CLEAR:
         std::cout << "clear" << std::endl;
+        system("cls");
+        break;
+    case commands::ENCODE:
+        vigenereEncode(1);
+        break;
+    case commands::DECODE:
+        vigenereEncode(-1);
         break;
 
     default:
-        std::cout << "unknoun" << std::endl;
+        std::cout << "unknoun command" << std::endl;
         break;
     }
 }
@@ -109,7 +117,7 @@ int CryptoAlgTest::elGamalTest()
 
     Alice.getMessage(Bob.sendEncMessage(Alice.getPublicKey()));
 
-    std::cout << "Decoded message: " << Alice.decMessage() << std::endl;
+    std::cout << "Alice gets message: " << Alice.decMessage() << std::endl;
 }
 
 int CryptoAlgTest::RSATest()
@@ -126,7 +134,7 @@ int CryptoAlgTest::RSATest()
 
     std::cout << "Enter Bob's message" << std::endl;
     Bob.setMes();
-    std::cout << "Alice get " << Alice.decode(Bob.sendMes()) << std::endl;
+    std::cout << "Alice get: " << Alice.decode(Bob.sendMes()) << std::endl;
 }
 
 int CryptoAlgTest::SHMRTest()
@@ -146,357 +154,84 @@ int CryptoAlgTest::SHMRTest()
     Alice.setMessage();
 
     int firstStage = Bob.cipherFirst(Alice.cipherFirst(Alice.getMessage()));
-    std::cout << Bob.cipherSecond(Alice.cipherSecond(firstStage)) << std::endl;
+    std::cout << "Bob gets: "
+              << Bob.cipherSecond(Alice.cipherSecond(firstStage)) << std::endl;
 }
 
-void DiffieHellman::setCloseKey()
+void sha256()
 {
-    std::cin >> closeKey;
-    while (closeKey <= 2 || closeKey > p - 1)
+    char fileName[256];
+    std::cin >> fileName;
+    FILE *file = fopen(fileName, "rb");
+    char buffer[1024];
+    size_t size;
+    struct sha256_buff buff;
+    sha256_init(&buff);
+    while (!feof(file))
     {
-        std::cout << "ERROR: secret code must be greater than 2 but smaller than "
-                  << p - 1 << std::endl
-                  << "Please, enter it again: ";
-        std::cin >> closeKey;
+        // Hash file by 1kb chunks, instead of loading into RAM at once
+        size = fread(buffer, 1, 1024, file);
+        sha256_update(&buff, buffer, size);
     }
+    char hash[65] = {0};
+    sha256_finalize(&buff);
+    sha256_read_hex(&buff, hash);
+    std::cout << hash << std::endl;
+    // printf("%s\n", hash);
 }
 
-void DiffieHellman::setOpenKey()
+void vigenereEncode(int mode)
 {
-    openKey = modCompare(g, closeKey, p);
-    std::cout << "Open key is " << openKey << std::endl;
-}
+    std::string fileName;
+    std::string key;
+    char c;
+    int pos = 0;
 
-int DiffieHellman::getOpenKey()
-{
-    return openKey;
-}
+    std::cin >> fileName;
+    std::cin >> key;
 
-void DiffieHellman::setResKey(int friendOpenKey)
-{
-    resKey = modCompare(friendOpenKey, closeKey, p);
-    std::cout << "Result key " << resKey << std::endl;
-}
-
-int DiffieHellman::getResKey()
-{
-    return resKey;
-}
-
-int DiffieHellman::modCompare(int num, int pow, int mod)
-{
-    pow = pow % (mod - 1); //теоремка ферма
-    num %= mod;
-
-    int result = 1;
-    for (int i = 1; i <= pow; i++)
+    std::fstream file, file_tmp;
+    file.open(fileName, std::fstream::in);
+    if (!file)
     {
-        result *= num;
-        result %= mod;
+        std::cout << "Error: file can't be opened" << std::endl;
+        return;
     }
-    return result;
-}
-
-int ElGamal::modCompare(int num, int pow, int mod)
-{
-    pow = pow % (mod - 1); //теоремка ферма
-    num %= mod;
-
-    int result = 1;
-    for (int i = 1; i <= pow; i++)
+    file_tmp.open("tmp.txt", std::fstream::out);
+    if (!file_tmp)
     {
-        result *= num;
-        result %= mod;
-    }
-    return result;
-}
-
-void ElGamal::setPrivateKey()
-{
-    std::cin >> privateKey;
-    while (privateKey <= 2 || privateKey > p - 1)
-    {
-        std::cout << "ERROR: secret code must be greater than 2 but smaller than "
-                  << p - 1 << std::endl
-                  << "Please, enter it again: ";
-        std::cin >> privateKey;
-    }
-}
-
-void ElGamal::setPublicKey()
-{
-    publicKey = modCompare(g, privateKey, p);
-    std::cout << "Open key is " << publicKey << std::endl;
-}
-
-int ElGamal::getPublicKey()
-{
-    return publicKey;
-}
-
-void ElGamal::setMessage()
-{
-    std::cin >> message;
-}
-
-int *ElGamal::sendEncMessage(int friendPublicKey)
-{
-    encrMessage[0] = modCompare(g, privateKey, p);
-    encrMessage[1] = modCompare(friendPublicKey, privateKey, p);
-    encrMessage[1] = (encrMessage[1] * message) % p;
-    return encrMessage;
-}
-
-void ElGamal::getMessage(int message[2])
-{
-    encrMessage[0] = message[0];
-    encrMessage[1] = message[1];
-}
-
-int ElGamal::decMessage()
-{
-    return (encrMessage[1] * modCompare(encrMessage[0], p - 1 - privateKey, p)) % p;
-}
-
-void RSA::setpq()
-{
-    std::cin >> p;
-    while (!isPrime(p))
-    {
-        std::cout << "ERROR: p must be prime " << std::endl;
-        std::cin >> p;
+        std::cout << "Error: can't create tmp files" << std::endl;
+        return;
     }
 
-    std::cin >> q;
-    while (!isPrime(q))
+    while (file >> std::noskipws >> c)
     {
-        std::cout << "ERROR: q must be prime " << std::endl;
-        std::cin >> q;
+        c = c + mode*key[pos%key.length()];
+        pos++;
+        file_tmp << c;
     }
 
-    mod = p * q;
-    len = (p - 1) * (q - 1);
-}
+    file.close();
+    file_tmp.close();
 
-void RSA::setEncKey()
-{
-    std::cin >> encKey;
-    while (gcd(encKey, len) != 1 && gcd(encKey, mod) != 1 && encKey < 1 && encKey > len)
+    file.open(fileName, std::fstream::out);
+    if (!file)
     {
-        std::cout << "Error: incorect key" << std::endl;
-        std::cin >> encKey;
+        std::cout << "Error: file can't be opened" << std::endl;
+        return;
     }
-}
-
-void RSA::setDecKey()
-{
-    decKey = extEucAlg(encKey, len);
-    std::cout << "decKey " << decKey << std::endl;
-}
-
-void RSA::setMes()
-{
-    std::cin >> message;
-}
-
-int RSA::sendMes()
-{
-    int encMes = modCompare(message, publicKey[0], publicKey[1]);
-    std::cout << "sending message " << encMes << std::endl;
-
-    return encMes;
-}
-
-int RSA::decode(int message)
-{
-    return modCompare(message, decKey, mod);
-}
-
-int *RSA::getPublicKey()
-{
-    publicKey[0] = encKey;
-    publicKey[1] = mod;
-
-    return publicKey;
-}
-
-void RSA::recievePublicKey(int r_publicKey[2])
-{
-    publicKey[0] = r_publicKey[0];
-    publicKey[1] = r_publicKey[1];
-}
-
-int RSA::extEucAlg(int a, int b)
-{
-    int mod = b;
-    //FIX THIS DOESN'T WORK
-    int q, r, nod, x, y;
-    int x2 = 1, x1 = 0, y2 = 0, y1 = 1;
-    while (b > 0)
+    file_tmp.open("tmp.txt", std::fstream::in);
+    if (!file_tmp)
     {
-        q = a / b;
-        r = a - q * b;
-        x = x2 - q * x1;
-        y = y2 - q * y1;
-        a = b;
-        b = r;
-        x2 = x1;
-        x1 = x;
-        y2 = y1;
-        y1 = y;
+        std::cout << "Error: can't create tmp files" << std::endl;
+        return;
     }
-    nod = a, x = x2, y = y2;
-    if (x < 0)
-    {
-        x = x + mod;
-    }
-    return x;
-}
 
-bool RSA::isPrime(int number)
-{
-    if (number < 2)
-        return false;
-    if (number == 2)
-        return true;
-    if (number % 2 == 0)
-        return false;
-    for (int i = 3; (i * i) <= number; i += 2)
-    {
-        if (number % i == 0)
-            return false;
-    }
-    return true;
-}
+    while (file_tmp >> std::noskipws >> c)
+        file << c;
 
-int RSA::gcd(int a, int b)
-{
-    while (a != b)
-    {
-        if (a > b)
-        {
-            a -= b;
-        }
-        else
-        {
-            b -= a;
-        }
-    }
-    return a;
-}
-
-int RSA::modCompare(int num, int pow, int mod)
-{
-    pow = pow % (mod - 1); //теоремка ферма
-    num %= mod;
-
-    int result = 1;
-    for (int i = 1; i <= pow; i++)
-    {
-        result *= num;
-        result %= mod;
-    }
-    return result;
-}
-
-void SHAMIR::setp()
-{
-    std::cin >> p;
-    while (!isPrime(p))
-    {
-        std::cout << "ERROR: p must be prime " << std::endl;
-        std::cin >> p;
-    }
-}
-
-void SHAMIR::setPrivateKey()
-{
-    std::cin >> privateKeyFirst;
-    privateKeySecond = extEucAlg(privateKeyFirst, p - 1);
-    std::cout << "private key second " << privateKeySecond << std::endl;
-}
-
-void SHAMIR::setMessage()
-{
-    std::cin >> message;
-    while (message > p)
-    {
-        std::cout << "ERROR: message must be less then p" << std::endl;
-        std::cin >> message;
-    }
-}
-
-int SHAMIR::cipherFirst(int recived)
-{
-    int res = modCompare(recived, privateKeyFirst, p);
-    std::cout << "first " << res << std::endl;
-    return res;
-}
-
-int SHAMIR::cipherSecond(int recived)
-{
-    int res = modCompare(recived, privateKeySecond, p);
-    std::cout << "second " << res << std::endl;
-    return res;
-}
-
-int SHAMIR::getMessage()
-{
-    return message;
-}
-
-int SHAMIR::extEucAlg(int a, int b)
-{
-    int mod = b;
-    int q, r, nod, x, y;
-    int x2 = 1, x1 = 0, y2 = 0, y1 = 1;
-    while (b > 0)
-    {
-        q = a / b;
-        r = a - q * b;
-        x = x2 - q * x1;
-        y = y2 - q * y1;
-        a = b;
-        b = r;
-        x2 = x1;
-        x1 = x;
-        y2 = y1;
-        y1 = y;
-    }
-    nod = a, x = x2, y = y2;
-    if (x < 0)
-    {
-        x = x + mod;
-    }
-    return x;
-}
-
-bool SHAMIR::isPrime(int number)
-{
-    if (number < 2)
-        return false;
-    if (number == 2)
-        return true;
-    if (number % 2 == 0)
-        return false;
-    for (int i = 3; (i * i) <= number; i += 2)
-    {
-        if (number % i == 0)
-            return false;
-    }
-    return true;
-}
-
-int SHAMIR::modCompare(int num, int pow, int mod)
-{
-    pow = pow % (mod - 1); //теоремка ферма
-    num %= mod;
-
-    int result = 1;
-    for (int i = 1; i <= pow; i++)
-    {
-        result *= num;
-        result %= mod;
-    }
-    return result;
+    file.close();
+    file_tmp.close();
+    std::remove("tmp.txt");
+    std::cout << "File '" << fileName << "' " <<  ((mode == 1)?"Encrypted":"Decrypted") << " Successfully!" << std::endl;
 }
